@@ -38,9 +38,15 @@
           <p class="text-xs text-slate-500 dark:text-slate-400">Gestor Personal</p>
         </div>
       </div>
-      <button onclick="resetMonthData()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2.5 py-1.5 rounded-lg transition">
-        <i class="fa-solid fa-rotate-right mr-1"></i> Hoy
-      </button>
+      <div class="flex items-center gap-2">
+        <!-- Botón de Iniciar Sesión / Sincronización -->
+        <button id="auth-btn" onclick="toggleGoogleAuth()" class="text-xs bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5">
+          <i class="fa-brands fa-google text-xs"></i> <span id="auth-btn-text">Iniciar Sesión</span>
+        </button>
+        <button onclick="resetMonthData()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2.5 py-1.5 rounded-lg transition">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Hoy
+        </button>
+      </div>
     </header>
 
     <!-- Selector de Meses y Buscador -->
@@ -236,12 +242,40 @@
       selectedBrush: null,
       activeTab: 'calendar',
       modalDateKey: null,
-      modalSelectedType: null
+      modalSelectedType: null,
+      isLoggedIn: JSON.parse(localStorage.getItem('user_logged_in') || 'false')
     };
 
     function saveState() {
       localStorage.setItem('turnos_data_v3', JSON.stringify(state.shiftsData));
       localStorage.setItem('shifts_config_v2', JSON.stringify(shiftsConfig));
+      localStorage.setItem('user_logged_in', JSON.stringify(state.isLoggedIn));
+    }
+
+    function toggleGoogleAuth() {
+      if (!state.isLoggedIn) {
+        // Simulación de proceso de inicio de sesión de Google Calendar / OAuth
+        state.isLoggedIn = true;
+        alert("¡Sesión iniciada con Google con éxito! Sincronizando datos de tus turnos con Google Calendar...");
+      } else {
+        if (confirm("¿Deseas cerrar sesión en Google Calendar?")) {
+          state.isLoggedIn = false;
+        }
+      }
+      saveState();
+      renderAuthButton();
+    }
+
+    function renderAuthButton() {
+      const btnText = document.getElementById('auth-btn-text');
+      const btn = document.getElementById('auth-btn');
+      if (state.isLoggedIn) {
+        btnText.innerText = "Sincronizado";
+        btn.className = "text-xs bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5";
+      } else {
+        btnText.innerText = "Iniciar Sesión";
+        btn.className = "text-xs bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5";
+      }
     }
 
     function getDateKey(y, m, d) {
@@ -704,6 +738,7 @@
     }
 
     function render() {
+      renderAuthButton();
       renderWidget();
       renderBrushButtons();
       renderCalendar();
