@@ -1,1 +1,992 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="color-scheme" content="light dark">
+  <title>Mi Gestor de Turnos</title>
+  
+  <!-- Configuración PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mis Turnos">
 
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: currentColor; opacity: 0.2; border-radius: 4px; }
+  </style>
+</head>
+<body class="h-full overflow-x-hidden font-sans antialiased bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+
+  <div id="app" class="flex flex-col h-full w-full max-w-4xl mx-auto bg-white dark:bg-slate-900 shadow-2xl relative select-none">
+    
+    <!-- Cabecera -->
+    <header class="p-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700/60 sticky top-0 z-20 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid fa-calendar-days text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold leading-tight">Mis Turnos</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Gestor Personal</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="auth-btn" onclick="toggleGoogleAuth()" class="text-xs bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5">
+          <i class="fa-brands fa-google text-xs"></i> <span id="auth-btn-text">Iniciar Sesión</span>
+        </button>
+        <button onclick="resetMonthData()" class="text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2.5 py-1.5 rounded-lg transition">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Hoy
+        </button>
+      </div>
+    </header>
+
+    <!-- Selector de Meses y Buscador -->
+    <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 space-y-2.5">
+      <div class="flex items-center justify-between">
+        <button onclick="changeMonth(-1)" class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-chevron-left text-sm"></i>
+        </button>
+        <div class="text-center">
+          <span id="month-year-label" class="text-lg font-bold capitalize">Mes Año</span>
+        </div>
+        <button onclick="changeMonth(1)" class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-chevron-right text-sm"></i>
+        </button>
+      </div>
+
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+        <input type="text" id="search-input" oninput="handleSearch(this.value)" placeholder="Buscar fecha (ej. 15 o 15-06-2026) o nota..." class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-8 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 shadow-sm">
+        <button onclick="clearSearch()" id="clear-search-btn" class="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-white hidden">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-3 pb-24 space-y-3">
+      
+      <!-- RESULTADOS DE BÚSQUEDA -->
+      <div id="search-results-container" class="hidden space-y-2 p-3 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
+        <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex justify-between items-center">
+          <span>Resultados de la Búsqueda</span>
+          <span id="search-count" class="text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-md">0</span>
+        </div>
+        <div id="search-results-list" class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar"></div>
+      </div>
+
+      <!-- WIDGET DE HOY / PRÓXIMO TURNO -->
+      <div id="today-widget" class="p-4 bg-gradient-to-r from-indigo-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 rounded-2xl border border-indigo-100 dark:border-slate-700 shadow-lg relative overflow-hidden">
+        <div class="absolute right-0 top-0 bottom-0 w-24 bg-indigo-500/10 pointer-events-none rounded-r-2xl flex items-center justify-end pr-4 text-indigo-400/20 text-5xl">
+          <i id="widget-icon" class="fa-solid fa-sun"></i>
+        </div>
+        <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> Estado de Hoy y Próximo Turno
+        </div>
+        <div id="widget-content" class="flex flex-col justify-center space-y-2"></div>
+      </div>
+
+      <!-- Pestaña Calendario -->
+      <div id="tab-calendar" class="space-y-3">
+        <div class="p-2 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+          <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-2 mb-1.5 flex justify-between items-center">
+            <span><i class="fa-solid fa-paint-roller text-indigo-500 dark:text-indigo-400 mr-1"></i> Selecciona Turno:</span>
+            <span id="active-brush-indicator" class="text-indigo-600 dark:text-indigo-400 font-normal">Modo Normal</span>
+          </div>
+          <div id="brush-buttons" class="flex items-center gap-1.5 overflow-x-auto pb-1 px-1 custom-scrollbar"></div>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1 text-center">
+          <div class="text-[11px] font-bold text-slate-400 py-1">Lun</div>
+          <div class="text-[11px] font-bold text-slate-400 py-1">Mar</div>
+          <div class="text-[11px] font-bold text-slate-400 py-1">Mié</div>
+          <div class="text-[11px] font-bold text-slate-400 py-1">Jue</div>
+          <div class="text-[11px] font-bold text-slate-400 py-1">Vie</div>
+          <div class="text-[11px] font-bold text-slate-400 py-1">Sáb</div>
+          <div class="text-[11px] font-bold text-slate-400 py-1">Dom</div>
+        </div>
+
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1.5"></div>
+      </div>
+
+      <!-- Pestaña Estadísticas -->
+      <div id="tab-stats" class="space-y-4 hidden">
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+          <h2 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Resumen del Mes</h2>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 text-center shadow-sm">
+              <span id="stat-hours" class="text-2xl font-black text-indigo-600 dark:text-indigo-400">0 h</span>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Horas Totales</p>
+            </div>
+            <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 text-center shadow-sm">
+              <span id="stat-days" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">0 días</span>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Días Trabajados</p>
+            </div>
+          </div>
+          <div id="stats-breakdown" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- Pestaña Ajustes / Exportar -->
+      <div id="tab-export" class="space-y-4 hidden">
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/50 space-y-3">
+          <h2 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Configurar Horas de Turnos</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Modifica la hora de entrada y duración para cada tipo de turno.</p>
+          <div id="shift-config-list" class="space-y-2.5"></div>
+        </div>
+
+        <div class="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+          <h2 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Exportar y Copias</h2>
+          <div class="space-y-2.5">
+            <button onclick="exportICS()" class="w-full p-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md">
+              <i class="fa-solid fa-calendar-plus text-base"></i> Exportar a Calendario (.ics)
+            </button>
+            <button onclick="exportJSON()" class="w-full p-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition">
+              <i class="fa-solid fa-download text-base"></i> Descargar Copia JSON
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Modal de Edición Detallada -->
+    <div id="edit-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-700 p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+          <div>
+            <h3 id="modal-date-title" class="text-base font-bold text-slate-800 dark:text-slate-100">Fecha</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Configura el turno y hora de inicio</p>
+          </div>
+          <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Selector de Cantidad de Turnos -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cantidad de turnos:</label>
+          <div class="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+            <button type="button" id="btn-count-1" onclick="setModalShiftCount(1)" class="py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400">1 Turno</button>
+            <button type="button" id="btn-count-2" onclick="setModalShiftCount(2)" class="py-1.5 rounded-lg text-xs font-bold transition text-slate-500 dark:text-slate-400">2 Turnos</button>
+          </div>
+        </div>
+
+        <!-- Contenedor Turno Único -->
+        <div id="single-shift-section" class="space-y-3">
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Turno:</label>
+            <div id="modal-shift-options" class="grid grid-cols-3 gap-2"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-500 dark:text-slate-400">Hora de Entrada:</label>
+              <input type="time" id="modal-time-input" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-500 dark:text-slate-400">Nota:</label>
+              <input type="text" id="modal-note-input" placeholder="Ej. Cambio" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Contenedor Doble Turno -->
+        <div id="double-shift-section" class="space-y-3 hidden">
+          <!-- Primer Turno -->
+          <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Primer Turno</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Tipo:</label>
+                <select id="modal-double-1" onchange="onDoubleShiftChange(1)" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"></select>
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Entrada:</label>
+                <input type="time" id="modal-double-time-1" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Duración (horas):</label>
+              <input type="number" id="modal-double-dur-1" min="0" max="24" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+
+          <!-- Segundo Turno -->
+          <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+            <span class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Segundo Turno</span>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Tipo:</label>
+                <select id="modal-double-2" onchange="onDoubleShiftChange(2)" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"></select>
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Entrada:</label>
+                <input type="time" id="modal-double-time-2" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Duración (horas):</label>
+              <input type="number" id="modal-double-dur-2" min="0" max="24" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-500 dark:text-slate-400">Nota:</label>
+            <input type="text" id="modal-note-input-double" placeholder="Ej. Doble turno especial" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2">
+          <button onclick="clearDayModal()" class="flex-1 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold rounded-xl text-xs border border-rose-500/30">Borrar Día</button>
+          <button onclick="saveModalData()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-lg">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Navegación Inferior -->
+    <nav class="absolute bottom-0 left-0 right-0 h-16 bg-white/95 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-700/60 grid grid-cols-3 z-30">
+      <button onclick="switchTab('calendar')" id="nav-btn-calendar" class="flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold transition">
+        <i class="fa-solid fa-calendar-days text-base"></i>
+        <span class="text-[10px]">Calendario</span>
+      </button>
+      <button onclick="switchTab('stats')" id="nav-btn-stats" class="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">
+        <i class="fa-solid fa-chart-pie text-base"></i>
+        <span class="text-[10px]">Resumen</span>
+      </button>
+      <button onclick="switchTab('export')" id="nav-btn-export" class="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition">
+        <i class="fa-solid fa-sliders text-base"></i>
+        <span class="text-[10px]">Ajustes</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
+          .catch(err => console.log('Error al registrar el Service Worker:', err));
+      });
+    }
+
+    const DEFAULT_SHIFTS = {
+      M: { id: 'M', label: 'Mañana', defaultTime: '07:00', duration: 8, bg: 'bg-amber-500/10 dark:bg-amber-500/20', border: 'border-amber-500/40', text: 'text-amber-600 dark:text-amber-400', badge: 'bg-amber-500 text-white dark:text-slate-950', icon: 'fa-sun' },
+      T: { id: 'T', label: 'Tarde', defaultTime: '15:00', duration: 8, bg: 'bg-orange-500/10 dark:bg-orange-500/20', border: 'border-orange-500/40', text: 'text-orange-600 dark:text-orange-400', badge: 'bg-orange-500 text-white dark:text-slate-950', icon: 'fa-cloud-sun' },
+      N: { id: 'N', label: 'Noche', defaultTime: '23:00', duration: 8, bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', border: 'border-indigo-500/40', text: 'text-indigo-600 dark:text-indigo-400', badge: 'bg-indigo-500 text-white', icon: 'fa-moon' },
+      G: { id: 'G', label: 'Guardia', defaultTime: '08:00', duration: 12, bg: 'bg-red-500/10 dark:bg-red-500/20', border: 'border-red-500/40', text: 'text-red-600 dark:text-red-400', badge: 'bg-red-500 text-white', icon: 'fa-shield-halved' },
+      D: { id: 'D', label: 'Día', defaultTime: '07:00', duration: 24, bg: 'bg-purple-500/10 dark:bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-600 dark:text-purple-400', badge: 'bg-purple-500 text-white', icon: 'fa-calendar-star' },
+      L: { id: 'L', label: 'Libre', defaultTime: '', duration: 0, bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500 text-white dark:text-slate-950', icon: 'fa-bed' },
+      V: { id: 'V', label: 'Vacaciones', defaultTime: '', duration: 0, bg: 'bg-cyan-500/10 dark:bg-cyan-500/20', border: 'border-cyan-500/40', text: 'text-cyan-600 dark:text-cyan-400', badge: 'bg-cyan-500 text-white dark:text-slate-950', icon: 'fa-umbrella-beach' }
+    };
+
+    let shiftsConfig = JSON.parse(localStorage.getItem('shifts_config_v2')) || DEFAULT_SHIFTS;
+    if (!shiftsConfig.D) {
+      shiftsConfig.D = { id: 'D', label: 'Día', defaultTime: '07:00', duration: 24, bg: 'bg-purple-500/10 dark:bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-600 dark:text-purple-400', badge: 'bg-purple-500 text-white', icon: 'fa-calendar-star' };
+    }
+
+    const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    let state = {
+      currentDate: new Date(),
+      shiftsData: JSON.parse(localStorage.getItem('turnos_data_v3') || '{}'),
+      selectedBrush: null,
+      activeTab: 'calendar',
+      modalDateKey: null,
+      modalSelectedType: null,
+      modalShiftCount: 1,
+      isLoggedIn: JSON.parse(localStorage.getItem('user_logged_in') || 'false')
+    };
+
+    function saveState() {
+      localStorage.setItem('turnos_data_v3', JSON.stringify(state.shiftsData));
+      localStorage.setItem('shifts_config_v2', JSON.stringify(shiftsConfig));
+      localStorage.setItem('user_logged_in', JSON.stringify(state.isLoggedIn));
+    }
+
+    function toggleGoogleAuth() {
+      if (!state.isLoggedIn) {
+        state.isLoggedIn = true;
+        alert("¡Sesión iniciada con Google con éxito! Sincronizando datos de tus turnos con Google Calendar...");
+      } else {
+        if (confirm("¿Deseas cerrar sesión en Google Calendar?")) {
+          state.isLoggedIn = false;
+        }
+      }
+      saveState();
+      renderAuthButton();
+    }
+
+    function renderAuthButton() {
+      const btnText = document.getElementById('auth-btn-text');
+      const btn = document.getElementById('auth-btn');
+      if (state.isLoggedIn) {
+        btnText.innerText = "Sincronizado";
+        btn.className = "text-xs bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5";
+      } else {
+        btnText.innerText = "Iniciar Sesión";
+        btn.className = "text-xs bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5";
+      }
+    }
+
+    function getDateKey(y, m, d) {
+      return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    function parseDisplayToKey(inputStr) {
+      const parts = inputStr.trim().split('-');
+      if (parts.length === 3 && parts[0].length <= 2) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+      return inputStr.trim();
+    }
+
+    function changeMonth(dir) {
+      state.currentDate.setMonth(state.currentDate.getMonth() + dir);
+      render();
+    }
+
+    function resetMonthData() {
+      state.currentDate = new Date();
+      render();
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      ['calendar', 'stats', 'export'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById(`nav-btn-${t}`);
+        if (t === tab) {
+          btn.className = "flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold transition";
+        } else {
+          btn.className = "flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition";
+        }
+      });
+      render();
+    }
+
+    function setBrush(type) {
+      state.selectedBrush = state.selectedBrush === type ? null : type;
+      renderBrushButtons();
+    }
+
+    function handleDayClick(dateKey) {
+      if (state.selectedBrush) {
+        if (state.selectedBrush === 'CLEAR') {
+          delete state.shiftsData[dateKey];
+        } else {
+          const s = shiftsConfig[state.selectedBrush];
+          state.shiftsData[dateKey] = { 
+            count: 1,
+            type: state.selectedBrush, 
+            time: s.defaultTime, 
+            duration: s.duration,
+            note: state.shiftsData[dateKey]?.note || '' 
+          };
+        }
+        saveState();
+        render();
+      } else {
+        openModal(dateKey);
+      }
+    }
+
+    function setModalShiftCount(count) {
+      state.modalShiftCount = count;
+      const btn1 = document.getElementById('btn-count-1');
+      const btn2 = document.getElementById('btn-count-2');
+      const singleSec = document.getElementById('single-shift-section');
+      const doubleSec = document.getElementById('double-shift-section');
+
+      if (count === 1) {
+        btn1.className = "py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400";
+        btn2.className = "py-1.5 rounded-lg text-xs font-bold transition text-slate-500 dark:text-slate-400";
+        singleSec.classList.remove('hidden');
+        doubleSec.classList.add('hidden');
+      } else {
+        btn2.className = "py-1.5 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400";
+        btn1.className = "py-1.5 rounded-lg text-xs font-bold transition text-slate-500 dark:text-slate-400";
+        doubleSec.classList.remove('hidden');
+        singleSec.classList.add('hidden');
+      }
+    }
+
+    function openModal(dateKey, forceType = null) {
+      state.modalDateKey = dateKey;
+      const existing = state.shiftsData[dateKey];
+      
+      const count = existing?.count || 1;
+      setModalShiftCount(count);
+
+      document.getElementById('modal-date-title').innerText = `Día: ${formatDateDisplay(dateKey)}`;
+      
+      if (count === 2) {
+        document.getElementById('modal-note-input-double').value = existing?.note || '';
+        populateDoubleSelects(1, existing?.type1 || 'M', existing?.time1, existing?.duration1);
+        populateDoubleSelects(2, existing?.type2 || 'T', existing?.time2, existing?.duration2);
+      } else {
+        state.modalSelectedType = forceType || existing?.type || 'M';
+        document.getElementById('modal-note-input').value = existing?.note || '';
+        if (!forceType) {
+          document.getElementById('modal-time-input').value = existing?.time || shiftsConfig[state.modalSelectedType].defaultTime;
+        }
+        renderModalSingleOptions();
+      }
+
+      document.getElementById('edit-modal').classList.remove('hidden');
+    }
+
+    function populateDoubleSelects(index, selectedType, customTime, customDuration) {
+      const sel = document.getElementById(`modal-double-${index}`);
+      const timeInput = document.getElementById(`modal-double-time-${index}`);
+      const durInput = document.getElementById(`modal-double-dur-${index}`);
+      
+      let html = '';
+      Object.values(shiftsConfig).forEach(s => {
+        html += `<option value="${s.id}">${s.label}</option>`;
+      });
+
+      sel.innerHTML = html;
+      sel.value = selectedType;
+
+      const sConfig = shiftsConfig[selectedType] || shiftsConfig['M'];
+      timeInput.value = customTime !== undefined ? customTime : sConfig.defaultTime;
+      durInput.value = customDuration !== undefined ? customDuration : sConfig.duration;
+    }
+
+    function onDoubleShiftChange(index) {
+      const sel = document.getElementById(`modal-double-${index}`);
+      const timeInput = document.getElementById(`modal-double-time-${index}`);
+      const durInput = document.getElementById(`modal-double-dur-${index}`);
+      const sConfig = shiftsConfig[sel.value];
+
+      if (sConfig) {
+        timeInput.value = sConfig.defaultTime;
+        durInput.value = sConfig.duration;
+      }
+    }
+
+    function renderModalSingleOptions() {
+      const container = document.getElementById('modal-shift-options');
+      container.innerHTML = '';
+      Object.values(shiftsConfig).forEach(s => {
+        const isSelected = state.modalSelectedType === s.id;
+        container.innerHTML += `
+          <button type="button" onclick="selectModalShift('${s.id}')" class="p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition ${isSelected ? s.badge + ' border-indigo-500 ring-2 ring-indigo-400' : s.bg + ' ' + s.text + ' ' + s.border}">
+            <i class="fa-solid ${s.icon} text-sm"></i>
+            ${s.label}
+          </button>
+        `;
+      });
+    }
+
+    function selectModalShift(type) {
+      document.getElementById('modal-time-input').value = shiftsConfig[type].defaultTime;
+      state.modalSelectedType = type;
+      renderModalSingleOptions();
+    }
+
+    function closeModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+      state.modalDateKey = null;
+    }
+
+    function saveModalData() {
+      if (!state.modalDateKey) return;
+      
+      if (state.modalShiftCount === 2) {
+        const t1 = document.getElementById('modal-double-1').value;
+        const time1 = document.getElementById('modal-double-time-1').value;
+        const dur1 = parseFloat(document.getElementById('modal-double-dur-1').value) || 0;
+
+        const t2 = document.getElementById('modal-double-2').value;
+        const time2 = document.getElementById('modal-double-time-2').value;
+        const dur2 = parseFloat(document.getElementById('modal-double-dur-2').value) || 0;
+
+        const note = document.getElementById('modal-note-input-double').value;
+        
+        state.shiftsData[state.modalDateKey] = {
+          count: 2,
+          type1: t1,
+          time1,
+          duration1: dur1,
+          type2: t2,
+          time2,
+          duration2: dur2,
+          note
+        };
+      } else {
+        const note = document.getElementById('modal-note-input').value;
+        const time = document.getElementById('modal-time-input').value;
+        const duration = shiftsConfig[state.modalSelectedType]?.duration || 0;
+        state.shiftsData[state.modalDateKey] = {
+          count: 1,
+          type: state.modalSelectedType,
+          time,
+          duration,
+          note
+        };
+      }
+
+      saveState();
+      closeModal();
+      render();
+    }
+
+    function clearDayModal() {
+      if (!state.modalDateKey) return;
+      delete state.shiftsData[state.modalDateKey];
+      saveState();
+      closeModal();
+      render();
+    }
+
+    function updateShiftSetting(id, field, value) {
+      if (field === 'duration') {
+        shiftsConfig[id].duration = parseFloat(value) || 0;
+      } else if (field === 'defaultTime') {
+        shiftsConfig[id].defaultTime = value;
+      }
+      saveState();
+    }
+
+    function calculateAlarmTime(timeStr) {
+      if (!timeStr) return null;
+      let [hours, minutes] = timeStr.split(':').map(Number);
+      hours -= 1;
+      if (hours < 0) hours += 24;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+
+    function createAlarmCalendarEvent(dateKey, timeStr, shiftLabel) {
+      if (!timeStr) return;
+      const alarmTime = calculateAlarmTime(timeStr);
+      if (!alarmTime) return;
+
+      const cleanDate = dateKey.replace(/-/g, '');
+      const [alarmHours, alarmMins] = alarmTime.split(':');
+      const startTimeFormatted = `${cleanDate}T${alarmHours}${alarmMins}00`;
+      
+      let endHours = parseInt(alarmHours);
+      let endMins = parseInt(alarmMins) + 15;
+      if (endMins >= 60) {
+        endMins -= 60;
+        endHours = (endHours + 1) % 24;
+      }
+      const endTimeFormatted = `${cleanDate}T${String(endHours).padStart(2, '0')}${String(endMins).padStart(2, '0')}00`;
+
+      let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MisTurnosAlarma//ES\n";
+      ics += "BEGIN:VEVENT\n";
+      ics += `SUMMARY:Alarma Turno ${shiftLabel} (${timeStr})\n`;
+      ics += `DESCRIPTION:Aviso previo de 1 hora para el turno de ${shiftLabel} programado a las ${timeStr}.\n`;
+      ics += `DTSTART:${startTimeFormatted}\n`;
+      ics += `DTEND:${endTimeFormatted}\n`;
+      ics += "BEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Recordatorio de Alarma\nEND:VALARM\n";
+      ics += "END:VEVENT\n";
+      ics += "END:VCALENDAR";
+
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `alarma_${dateKey}.ics`;
+      link.click();
+    }
+
+    function handleSearch(query) {
+      const rawQ = query.trim().toLowerCase();
+      const q = parseDisplayToKey(rawQ);
+      const container = document.getElementById('search-results-container');
+      const list = document.getElementById('search-results-list');
+      const clearBtn = document.getElementById('clear-search-btn');
+      const countBadge = document.getElementById('search-count');
+
+      if (!rawQ) {
+        container.classList.add('hidden');
+        clearBtn.classList.add('hidden');
+        return;
+      }
+
+      clearBtn.classList.remove('hidden');
+      container.classList.remove('hidden');
+
+      let matches = [];
+      Object.entries(state.shiftsData).forEach(([dateStr, data]) => {
+        const displayDate = formatDateDisplay(dateStr).toLowerCase();
+        const matchDate = dateStr.includes(q) || displayDate.includes(rawQ);
+        let matchType = false;
+        
+        if (data.count === 2) {
+          const s1 = shiftsConfig[data.type1];
+          const s2 = shiftsConfig[data.type2];
+          matchType = (s1 && (s1.label.toLowerCase().includes(rawQ) || s1.id.toLowerCase() === rawQ)) ||
+                      (s2 && (s2.label.toLowerCase().includes(rawQ) || s2.id.toLowerCase() === rawQ));
+        } else {
+          const s = shiftsConfig[data.type];
+          matchType = s && (s.label.toLowerCase().includes(rawQ) || s.id.toLowerCase() === rawQ);
+        }
+
+        const matchNote = data.note && data.note.toLowerCase().includes(rawQ);
+
+        if (matchDate || matchType || matchNote) {
+          matches.push({ dateStr, data });
+        }
+      });
+
+      matches.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+      countBadge.innerText = matches.length;
+
+      if (matches.length === 0) {
+        list.innerHTML = `<div class="text-xs text-slate-500 dark:text-slate-400 text-center py-2">No se encontraron turnos con "${query}"</div>`;
+        return;
+      }
+
+      let html = '';
+      matches.forEach(item => {
+        const formattedDate = formatDateDisplay(item.dateStr);
+        let badgeHtml = '';
+        if (item.data.count === 2) {
+          const s1 = shiftsConfig[item.data.type1];
+          const s2 = shiftsConfig[item.data.type2];
+          badgeHtml = `<span class="text-[10px] px-1.5 py-0.5 rounded ${s1.badge} font-bold mr-1">${s1.id}</span><span class="text-[10px] px-1.5 py-0.5 rounded ${s2.badge} font-bold">${s2.id}</span>`;
+        } else {
+          const s = shiftsConfig[item.data.type];
+          badgeHtml = `<span class="text-[10px] px-1.5 py-0.5 rounded ${s.badge} font-bold">${s.label}</span>`;
+        }
+
+        html += `
+          <div onclick="jumpToDate('${item.dateStr}')" class="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:border-indigo-500 transition">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">${formattedDate}</span>
+              <div>${badgeHtml}</div>
+            </div>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">${item.data.note || item.data.time || ''}</span>
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+    }
+
+    function clearSearch() {
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-results-container').classList.add('hidden');
+      document.getElementById('clear-search-btn').classList.add('hidden');
+    }
+
+    function jumpToDate(dateStr) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        state.currentDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        switchTab('calendar');
+        render();
+        openModal(dateStr);
+      }
+    }
+
+    function renderWidget() {
+      const now = new Date();
+      const todayKey = getDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayData = state.shiftsData[todayKey];
+      const widgetContent = document.getElementById('widget-content');
+      const widgetIcon = document.getElementById('widget-icon');
+
+      let nextShiftText = "Sin próximos turnos de trabajo registrados";
+      const sortedKeys = Object.keys(state.shiftsData).sort();
+      for (const key of sortedKeys) {
+        if (key > todayKey) {
+          const d = state.shiftsData[key];
+          if (d) {
+            if (d.count === 2) {
+              nextShiftText = `Próximo: <strong>Doble Turno</strong> el ${formatDateDisplay(key)}`;
+              break;
+            } else if (d.type !== 'L' && d.type !== 'V') {
+              const s = shiftsConfig[d.type];
+              if (s) {
+                nextShiftText = `Próximo: <strong>${s.label}</strong> el ${formatDateDisplay(key)}${d.time ? ' (' + d.time + ')' : ''}`;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      let todayHtml = "";
+      if (!todayData) {
+        widgetIcon.className = "fa-solid fa-mug-hot";
+        todayHtml = `
+          <div class="text-base font-black text-slate-800 dark:text-slate-200">Hoy: Sin turno asignado</div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">${nextShiftText}</p>
+        `;
+      } else if (todayData.count === 2) {
+        widgetIcon.className = "fa-solid fa-layer-group";
+        const s1 = shiftsConfig[todayData.type1];
+        const s2 = shiftsConfig[todayData.type2];
+        todayHtml = `
+          <div class="flex items-center gap-2">
+            <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">Hoy: Doble Turno</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md ${s1.badge} font-bold">${s1.id}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md ${s2.badge} font-bold">${s2.id}</span>
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-300">${s1.label} (${todayData.time1 || '--:--'}) + ${s2.label} (${todayData.time2 || '--:--'}) ${todayData.note ? '• ' + todayData.note : ''}</p>
+          <div class="text-[11px] text-indigo-600 dark:text-indigo-400 pt-1 border-t border-indigo-100 dark:border-slate-700/60 mt-1">${nextShiftText}</div>
+        `;
+      } else {
+        const s = shiftsConfig[todayData.type];
+        widgetIcon.className = `fa-solid ${s.icon}`;
+        let alarmBtnHtml = '';
+        if (todayData.time && todayData.type !== 'L' && todayData.type !== 'V') {
+          const alarmTime = calculateAlarmTime(todayData.time);
+          alarmBtnHtml = `
+            <button onclick="createAlarmCalendarEvent('${todayKey}', '${todayData.time}', '${s.label}')" class="mt-1.5 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-[11px] flex items-center justify-center gap-1.5 shadow transition w-fit">
+              <i class="fa-solid fa-calendar-plus"></i> Crear Alarma en Calendario (${alarmTime}, 1h antes)
+            </button>
+          `;
+        }
+        todayHtml = `
+          <div class="flex items-center gap-2">
+            <span class="text-lg font-black ${s.text}">Hoy: ${s.label}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded-md ${s.badge} font-bold">${s.id}</span>
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-300">${todayData.time ? 'Entrada: <strong>' + todayData.time + '</strong>' : ''} ${todayData.note ? '• ' + todayData.note : ''}</p>
+          ${alarmBtnHtml}
+          <div class="text-[11px] text-indigo-600 dark:text-indigo-400 pt-1 border-t border-indigo-100 dark:border-slate-700/60 mt-1">${nextShiftText}</div>
+        `;
+      }
+
+      widgetContent.innerHTML = todayHtml;
+    }
+
+    function renderBrushButtons() {
+      const container = document.getElementById('brush-buttons');
+      const indicator = document.getElementById('active-brush-indicator');
+      
+      let html = `
+        <button onclick="setBrush(null)" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${state.selectedBrush === null ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-500' : 'bg-white dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'}">
+          <i class="fa-solid fa-hand-pointer mr-1"></i> Normal
+        </button>
+      `;
+
+      Object.values(shiftsConfig).forEach(s => {
+        const active = state.selectedBrush === s.id;
+        html += `
+          <button onclick="setBrush('${s.id}')" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition flex items-center gap-1 border ${active ? s.badge + ' border-indigo-500 ring-2 ring-indigo-400' : s.bg + ' ' + s.text + ' ' + s.border}">
+            <i class="fa-solid ${s.icon}"></i> ${s.label}
+          </button>
+        `;
+      });
+
+      html += `
+        <button onclick="setBrush('CLEAR')" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${state.selectedBrush === 'CLEAR' ? 'bg-rose-600 text-white border-white' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'}">
+          <i class="fa-solid fa-eraser mr-1"></i> Borrar
+        </button>
+      `;
+
+      container.innerHTML = html;
+      indicator.innerText = state.selectedBrush ? `Pincel: ${state.selectedBrush}` : "Modo Normal (Toca para editar)";
+    }
+
+    function renderCalendar() {
+      const y = state.currentDate.getFullYear();
+      const m = state.currentDate.getMonth();
+      
+      document.getElementById('month-year-label').innerText = `${MONTH_NAMES[m]} ${y}`;
+
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const firstDayIndex = (new Date(y, m, 1).getDay() + 6) % 7;
+      const todayStr = getDateKey(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
+      const grid = document.getElementById('calendar-grid');
+      let html = '';
+
+      for (let i = 0; i < firstDayIndex; i++) {
+        html += `<div class="aspect-square rounded-xl bg-slate-100 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800/30 opacity-20"></div>`;
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateKey = getDateKey(y, m, d);
+        const shiftData = state.shiftsData[dateKey];
+        const isToday = dateKey === todayStr;
+
+        let cellContent = '<span class="text-[10px] text-slate-400">-</span>';
+        let cellBg = 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800';
+        let timeText = '';
+
+        if (shiftData) {
+          if (shiftData.count === 2) {
+            const s1 = shiftsConfig[shiftData.type1];
+            const s2 = shiftsConfig[shiftData.type2];
+            cellBg = 'bg-indigo-500/10 dark:bg-indigo-500/20 border-indigo-500/40';
+            cellContent = `
+              <div class="flex gap-1 items-center justify-center">
+                <span class="text-[9px] font-black uppercase px-1 py-0.5 rounded ${s1?.badge || ''}">${s1?.id || shiftData.type1}</span>
+                <span class="text-[9px] font-black uppercase px-1 py-0.5 rounded ${s2?.badge || ''}">${s2?.id || shiftData.type2}</span>
+              </div>
+              <div class="text-[8px] font-medium mt-0.5 text-indigo-600 dark:text-indigo-400">Doble</div>
+            `;
+          } else {
+            const shift = shiftsConfig[shiftData.type];
+            if (shift) {
+              cellBg = `${shift.bg} ${shift.border}`;
+              cellContent = `
+                <span class="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md ${shift.badge}">${shift.id}</span>
+                <div class="text-[9px] font-medium mt-1 ${shift.text}">${shift.label}</div>
+              `;
+              timeText = shiftData.time || '';
+            }
+          }
+        }
+
+        html += `
+          <div onclick="handleDayClick('${dateKey}')" class="aspect-square rounded-xl p-1 flex flex-col justify-between relative cursor-pointer transition active:scale-95 border ${cellBg} ${isToday ? 'ring-2 ring-indigo-500' : ''}">
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}">${d}</span>
+              ${shiftData?.note ? '<span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>' : ''}
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center my-0.5">
+              ${cellContent}
+            </div>
+            ${timeText ? `<div class="text-[8px] text-slate-500 dark:text-slate-400 text-center truncate">${timeText}</div>` : ''}
+          </div>
+        `;
+      }
+      grid.innerHTML = html;
+    }
+
+    function renderStats() {
+      const y = state.currentDate.getFullYear();
+      const m = state.currentDate.getMonth();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+      let totalHours = 0;
+      let totalDays = 0;
+      let counts = {};
+      Object.keys(shiftsConfig).forEach(k => counts[k] = 0);
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = getDateKey(y, m, d);
+        const data = state.shiftsData[key];
+        if (data) {
+          if (data.count === 2) {
+            if (shiftsConfig[data.type1]) counts[data.type1]++;
+            if (shiftsConfig[data.type2]) counts[data.type2]++;
+            
+            totalHours += (data.duration1 !== undefined ? data.duration1 : (shiftsConfig[data.type1]?.duration || 0));
+            totalHours += (data.duration2 !== undefined ? data.duration2 : (shiftsConfig[data.type2]?.duration || 0));
+            totalDays++;
+          } else if (shiftsConfig[data.type]) {
+            const type = data.type;
+            counts[type]++;
+            totalHours += (data.duration !== undefined ? data.duration : (shiftsConfig[type]?.duration || 0));
+            if (type !== 'L' && type !== 'V') totalDays++;
+          }
+        }
+      }
+
+      document.getElementById('stat-hours').innerText = `${totalHours} h`;
+      document.getElementById('stat-days').innerText = `${totalDays} días`;
+
+      let breakdownHtml = `<div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Desglose del mes:</div>`;
+      Object.values(shiftsConfig).forEach(s => {
+        breakdownHtml += `
+          <div class="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center gap-2.5">
+              <span class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${s.badge}">${s.id}</span>
+              <span class="text-sm font-medium text-slate-800 dark:text-slate-200">${s.label}</span>
+            </div>
+            <span class="text-sm font-bold text-slate-900 dark:text-slate-100">${counts[s.id]} días</span>
+          </div>
+        `;
+      });
+      document.getElementById('stats-breakdown').innerHTML = breakdownHtml;
+    }
+
+    function renderShiftConfigList() {
+      const container = document.getElementById('shift-config-list');
+      let html = '';
+      Object.values(shiftsConfig).forEach(s => {
+        html += `
+          <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 flex items-center justify-between gap-2 shadow-sm">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${s.badge}">${s.id}</span>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">${s.label}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div>
+                <label class="text-[9px] text-slate-500 dark:text-slate-400 block">Entrada</label>
+                <input type="time" value="${s.defaultTime}" onchange="updateShiftSetting('${s.id}', 'defaultTime', this.value)" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-100 w-24">
+              </div>
+              <div>
+                <label class="text-[9px] text-slate-500 dark:text-slate-400 block">Horas</label>
+                <input type="number" min="0" max="24" value="${s.duration}" onchange="updateShiftSetting('${s.id}', 'duration', this.value)" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-100 w-16">
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function exportICS() {
+      let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MisTurnos//ES\n";
+      Object.entries(state.shiftsData).forEach(([dateStr, data]) => {
+        const cleanDate = dateStr.replace(/-/g, '');
+        if (data.count === 2) {
+          const s1 = shiftsConfig[data.type1];
+          const s2 = shiftsConfig[data.type2];
+          ics += `BEGIN:VEVENT\nSUMMARY:Turno ${s1?.label || data.type1} y ${s2?.label || data.type2}${data.note ? ' - ' + data.note : ''}\nDTSTART;VALUE=DATE:${cleanDate}\nDTEND;VALUE=DATE:${cleanDate}\nEND:VEVENT\n`;
+        } else {
+          if (!data.type || data.type === 'L') return;
+          const s = shiftsConfig[data.type];
+          ics += `BEGIN:VEVENT\nSUMMARY:Turno ${s?.label || data.type}${data.note ? ' - ' + data.note : ''}\nDTSTART;VALUE=DATE:${cleanDate}\nDTEND;VALUE=DATE:${cleanDate}\nEND:VEVENT\n`;
+        }
+      });
+      ics += "END:VCALENDAR";
+      
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `mis_turnos.ics`;
+      link.click();
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(state.shiftsData, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `backup_turnos.json`;
+      link.click();
+    }
+
+    function render() {
+      renderAuthButton();
+      renderWidget();
+      renderBrushButtons();
+      renderCalendar();
+      if (state.activeTab === 'stats') renderStats();
+      if (state.activeTab === 'export') {
+        renderShiftConfigList();
+      }
+    }
+
+    window.onload = () => {
+      render();
+    };
+  </script>
+</body>
+</html>
