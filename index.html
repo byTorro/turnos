@@ -121,7 +121,7 @@
       <div id="tab-stats" class="space-y-4 hidden">
         <div class="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700/50">
           <h2 class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Resumen del Mes</h2>
-          <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="grid grid-cols-2 gap-3 mb-3">
             <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 text-center shadow-sm">
               <span id="stat-hours" class="text-2xl font-black text-indigo-600 dark:text-indigo-400">0 h</span>
               <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Horas Totales</p>
@@ -129,6 +129,17 @@
             <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 text-center shadow-sm">
               <span id="stat-days" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">0 días</span>
               <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Días Trabajados</p>
+            </div>
+          </div>
+          <!-- Contadores discriminados de horas -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 text-center shadow-sm">
+              <span id="stat-hours-mtn" class="text-xl font-black text-amber-600 dark:text-amber-400">0 h</span>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Mañ. / Tard. / Noche</p>
+            </div>
+            <div class="p-3 bg-white dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700/40 text-center shadow-sm">
+              <span id="stat-hours-ag" class="text-xl font-black text-teal-600 dark:text-teal-400">0 h</span>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Arranque / Guardia</p>
             </div>
           </div>
           <div id="stats-breakdown" class="space-y-2"></div>
@@ -283,21 +294,26 @@
       T: { id: 'T', label: 'Tarde', defaultTime: '15:00', duration: 8, bg: 'bg-orange-500/10 dark:bg-orange-500/20', border: 'border-orange-500/40', text: 'text-orange-600 dark:text-orange-400', badge: 'bg-orange-500 text-white dark:text-slate-950', icon: 'fa-cloud-sun' },
       N: { id: 'N', label: 'Noche', defaultTime: '23:00', duration: 8, bg: 'bg-indigo-500/10 dark:bg-indigo-500/20', border: 'border-indigo-500/40', text: 'text-indigo-600 dark:text-indigo-400', badge: 'bg-indigo-500 text-white', icon: 'fa-moon' },
       G: { id: 'G', label: 'Guardia', defaultTime: '08:00', duration: 12, bg: 'bg-red-500/10 dark:bg-red-500/20', border: 'border-red-500/40', text: 'text-red-600 dark:text-red-400', badge: 'bg-red-500 text-white', icon: 'fa-shield-halved' },
+      A: { id: 'A', label: 'Arranque', defaultTime: '04:00', duration: 8, bg: 'bg-teal-500/10 dark:bg-teal-500/20', border: 'border-teal-500/40', text: 'text-teal-600 dark:text-teal-400', badge: 'bg-teal-500 text-white dark:text-slate-950', icon: 'fa-gears' },
+      F: { id: 'F', label: 'Formación', defaultTime: '08:00', duration: 8, bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-600 dark:text-blue-400', badge: 'bg-blue-500 text-white', icon: 'fa-book' },
       D: { id: 'D', label: 'Día', defaultTime: '07:00', duration: 24, bg: 'bg-purple-500/10 dark:bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-600 dark:text-purple-400', badge: 'bg-purple-500 text-white', icon: 'fa-calendar-star' },
       L: { id: 'L', label: 'Libre', defaultTime: '', duration: 0, bg: 'bg-emerald-500/10 dark:bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500 text-white dark:text-slate-950', icon: 'fa-bed' },
       V: { id: 'V', label: 'Vacaciones', defaultTime: '', duration: 0, bg: 'bg-cyan-500/10 dark:bg-cyan-500/20', border: 'border-cyan-500/40', text: 'text-cyan-600 dark:text-cyan-400', badge: 'bg-cyan-500 text-white dark:text-slate-950', icon: 'fa-umbrella-beach' }
     };
 
-    let shiftsConfig = JSON.parse(localStorage.getItem('shifts_config_v2')) || DEFAULT_SHIFTS;
-    if (!shiftsConfig.D) {
-      shiftsConfig.D = { id: 'D', label: 'Día', defaultTime: '07:00', duration: 24, bg: 'bg-purple-500/10 dark:bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-600 dark:text-purple-400', badge: 'bg-purple-500 text-white', icon: 'fa-calendar-star' };
+    let shiftsConfig = JSON.parse(localStorage.getItem('shifts_config_v3')) || DEFAULT_SHIFTS;
+    if (!shiftsConfig.A) {
+      shiftsConfig.A = { id: 'A', label: 'Arranque', defaultTime: '04:00', duration: 8, bg: 'bg-teal-500/10 dark:bg-teal-500/20', border: 'border-teal-500/40', text: 'text-teal-600 dark:text-teal-400', badge: 'bg-teal-500 text-white dark:text-slate-950', icon: 'fa-gears' };
+    }
+    if (!shiftsConfig.F) {
+      shiftsConfig.F = { id: 'F', label: 'Formación', defaultTime: '08:00', duration: 8, bg: 'bg-blue-500/10 dark:bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-600 dark:text-blue-400', badge: 'bg-blue-500 text-white', icon: 'fa-book' };
     }
 
     const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     let state = {
       currentDate: new Date(),
-      shiftsData: JSON.parse(localStorage.getItem('turnos_data_v3') || '{}'),
+      shiftsData: JSON.parse(localStorage.getItem('turnos_data_v4') || '{}'),
       selectedBrush: null,
       activeTab: 'calendar',
       modalDateKey: null,
@@ -307,8 +323,8 @@
     };
 
     function saveState() {
-      localStorage.setItem('turnos_data_v3', JSON.stringify(state.shiftsData));
-      localStorage.setItem('shifts_config_v2', JSON.stringify(shiftsConfig));
+      localStorage.setItem('turnos_data_v4', JSON.stringify(state.shiftsData));
+      localStorage.setItem('shifts_config_v3', JSON.stringify(shiftsConfig));
       localStorage.setItem('user_logged_in', JSON.stringify(state.isLoggedIn));
     }
 
@@ -875,6 +891,8 @@
 
       let totalHours = 0;
       let totalDays = 0;
+      let hoursMTN = 0;
+      let hoursAG = 0;
       let counts = {};
       Object.keys(shiftsConfig).forEach(k => counts[k] = 0);
 
@@ -886,20 +904,32 @@
             if (shiftsConfig[data.type1]) counts[data.type1]++;
             if (shiftsConfig[data.type2]) counts[data.type2]++;
             
-            totalHours += (data.duration1 !== undefined ? data.duration1 : (shiftsConfig[data.type1]?.duration || 0));
-            totalHours += (data.duration2 !== undefined ? data.duration2 : (shiftsConfig[data.type2]?.duration || 0));
+            const h1 = data.duration1 !== undefined ? data.duration1 : (shiftsConfig[data.type1]?.duration || 0);
+            const h2 = data.duration2 !== undefined ? data.duration2 : (shiftsConfig[data.type2]?.duration || 0);
+            totalHours += (h1 + h2);
             totalDays++;
+
+            [ {type: data.type1, h: h1}, {type: data.type2, h: h2} ].forEach(item => {
+              if (['M', 'T', 'N'].includes(item.type)) hoursMTN += item.h;
+              if (['A', 'G'].includes(item.type)) hoursAG += item.h;
+            });
           } else if (shiftsConfig[data.type]) {
             const type = data.type;
             counts[type]++;
-            totalHours += (data.duration !== undefined ? data.duration : (shiftsConfig[type]?.duration || 0));
+            const h = data.duration !== undefined ? data.duration : (shiftsConfig[type]?.duration || 0);
+            totalHours += h;
             if (type !== 'L' && type !== 'V') totalDays++;
+
+            if (['M', 'T', 'N'].includes(type)) hoursMTN += h;
+            if (['A', 'G'].includes(type)) hoursAG += h;
           }
         }
       }
 
       document.getElementById('stat-hours').innerText = `${totalHours} h`;
       document.getElementById('stat-days').innerText = `${totalDays} días`;
+      document.getElementById('stat-hours-mtn').innerText = `${hoursMTN} h`;
+      document.getElementById('stat-hours-ag').innerText = `${hoursAG} h`;
 
       let breakdownHtml = `<div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Desglose del mes:</div>`;
       Object.values(shiftsConfig).forEach(s => {
